@@ -1,0 +1,60 @@
+#---------------------------------------------------------------------------------------
+# Name:        Batch-reproject-tool
+# Purpose:
+#
+# Author:      vivian Werth
+#
+# Created:     23/03/2026
+# Copyright:   (c) vivia 2026
+# Licence:     <your licence>
+#---------------------------------------------------------------------------------------
+
+import arcpy
+import os
+
+# Input parameters from the tool dialog
+input_folder = arcpy.GetParameterAsText(0)   # Folder containing vector datasets
+target_dataset = arcpy.GetParameterAsText(1) # Dataset whose spatial reference will be used
+if not input_folder or not os.path.exists(input_folder):
+    arcpy.AddError("Input folder is missing or invalid.")
+    raise SystemExit
+
+if not target_dataset or not arcpy.Exists(target_dataset):
+    arcpy.AddError("Target dataset is missing or invalid.")
+    raise SystemExit
+
+# Get the spatial reference of the target dataset
+targetSR = arcpy.Describe(target_dataset).spatialReference
+
+# List to store names of datasets that were projected
+projected_list = []
+
+# Loop through all feature classes in the folder
+arcpy.env.workspace = input_folder
+feature_classes = arcpy.ListFeatureClasses()
+
+for fc in feature_classes:
+    # Get spatial reference of current dataset
+    fcSR = arcpy.Describe(fc).spatialReference
+# Compare spatial reference names
+    if fcSR.Name != targetSR.Name:
+        # Build output name with "_projected"
+        rootName = fc.replace(".shp", "")
+        outName = rootName + "_projected.shp"
+        outPath = os.path.join(input_folder, outName)
+
+        # Run Project tool
+        arcpy.Project_management(fc, outPath, targetSR)
+
+        # Add messages from Project tool
+        arcpy.AddMessage(arcpy.GetMessages())
+
+        # Keep track of projected dataset
+        projected_list.append(outName)
+
+# Report which datasets were projected
+if projected_list:
+    message = "Projected datasets: " + ", ".join(projected_list)
+    arcpy.AddMessage(message)
+else:
+    arcpy.AddMessage("No datasets needed projection.")
